@@ -1038,7 +1038,7 @@ export default function App() {
     { id:"tools",    label:"⏱ Study Tools" },
     { id:"rating",   label:"⭐ Rate" },
     { id:"profile",  label:"👤 Profile" },
-    { id:"admin",    label:"⚙ Admin" },
+    ...(user?.is_admin ? [{ id:"admin", label:"⚙ Admin" }] : []),
   ];
 
   return (
@@ -1079,7 +1079,7 @@ export default function App() {
           { id:"tools",    icon:"⏱",  label:"Tools" },
           { id:"rating",   icon:"⭐", label:"Rate" },
           { id:"profile",  icon:"👤", label:"Profile" },
-          { id:"admin",    icon:"⚙",  label:"Admin" },
+          ...(user?.is_admin ? [{ id:"admin", icon:"⚙", label:"Admin" }] : []),
         ].map(t => (
           <button key={t.id} className={`mobile-nav-btn ${tab===t.id?"active":""}`} onClick={()=>setTab(t.id)}>
             <span>{t.icon}</span>

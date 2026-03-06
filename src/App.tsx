@@ -865,6 +865,77 @@ function Admin({ onToast }) {
   );
 }
 
+
+function Friends({ user, onToast, onMessage }) {
+  const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState(null);
+
+  useEffect(() => {
+    apiFetch("/matches").then(data => {
+      if (Array.isArray(data)) setMatches(data);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="loading"><div className="spinner" /></div>;
+
+  return (
+    <div>
+      <h2 className="page-title">👫 Friends</h2>
+      <p className="page-sub">Your study partners</p>
+
+      {matches.length === 0 && (
+        <div className="card" style={{ textAlign:"center", padding:"3rem", color:"var(--muted)" }}>
+          <div style={{ fontSize:"3rem", marginBottom:"1rem" }}>🤝</div>
+          <div style={{ fontWeight:600, marginBottom:"0.5rem" }}>No friends yet!</div>
+          <div style={{ fontSize:"0.9rem" }}>Start liking people in Discover to get matches</div>
+        </div>
+      )}
+
+      <div className="grid-2">
+        {matches.map(m => (
+          <div key={m.match_id} className="card" style={{ cursor:"pointer", transition:"transform 0.15s", padding:0, overflow:"hidden" }}
+            onClick={() => setSelected(selected?.match_id === m.match_id ? null : m)}>
+            <div style={{ height:60, background:`linear-gradient(135deg, ${userColor(m.id)} 0%, #1e293b 100%)` }} />
+            <div style={{ padding:"0 1rem 1rem" }}>
+              <div style={{ display:"flex", alignItems:"flex-end", gap:"0.75rem", marginTop:-24, marginBottom:"0.75rem" }}>
+                <div className="match-avatar" style={{ background:userColor(m.id), width:52, height:52, fontSize:"1.2rem", border:"3px solid var(--card)", flexShrink:0 }}>
+                  {m.photo ? <img src={m.photo} alt={m.name} style={{ width:"100%", height:"100%", objectFit:"cover", borderRadius:"50%" }} /> : (m.initials || getInitials(m.name))}
+                </div>
+                <div style={{ paddingBottom:"0.2rem" }}>
+                  <div style={{ fontWeight:700, fontSize:"1rem" }}>{m.name}</div>
+                  <div style={{ fontSize:"0.8rem", color:"var(--muted)" }}>📍 {m.college}</div>
+                </div>
+              </div>
+
+              {selected?.match_id === m.match_id && (
+                <div style={{ borderTop:"1px solid var(--border)", paddingTop:"0.75rem", marginTop:"0.25rem" }}>
+                  {m.style && <div style={{ marginBottom:"0.4rem" }}><span className="tag tag-style">{m.style}</span></div>}
+                  {m.subjects?.length > 0 && (
+                    <div style={{ display:"flex", flexWrap:"wrap", gap:"0.3rem", marginBottom:"0.75rem" }}>
+                      {m.subjects.map(s => <span key={s} className="tag">{s}</span>)}
+                    </div>
+                  )}
+                  <div style={{ display:"flex", gap:"0.5rem" }}>
+                    <button className="btn btn-primary btn-sm" style={{ flex:1 }} onClick={e => { e.stopPropagation(); onMessage(m); }}>
+                      💬 Message
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {selected?.match_id !== m.match_id && (
+                <div style={{ fontSize:"0.78rem", color:"var(--muted)", textAlign:"center" }}>Tap to view profile</div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function MatchPopup({ match, onClose }) {
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(13,13,13,0.7)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem" }}>
@@ -910,6 +981,7 @@ export default function App() {
 
   const TABS = [
     { id:"discover", label:"🔍 Discover" },
+    { id:"friends",  label:"👫 Friends" },
     { id:"messages", label:"💬 Messages" },
     { id:"tools",    label:"⏱ Study Tools" },
     { id:"rating",   label:"⭐ Rate" },
@@ -937,6 +1009,7 @@ export default function App() {
         </nav>
         <div className="main">
           {tab==="discover" && <Discover user={user} onMatch={handleMatch} onToast={showToast}/>}
+          {tab==="friends"  && <Friends user={user} onToast={showToast} onMessage={m => { setTab("messages"); }} />}
           {tab==="messages" && <Messages user={user} onToast={showToast}/>}
           {tab==="tools"    && <StudyTools onToast={showToast}/>}
           {tab==="rating"   && <Rating user={user} onToast={showToast}/>}
@@ -949,6 +1022,7 @@ export default function App() {
       <nav className="mobile-nav">
         {[
           { id:"discover", icon:"🔍", label:"Discover" },
+          { id:"friends",  icon:"👫", label:"Friends" },
           { id:"messages", icon:"💬", label:"Messages" },
           { id:"tools",    icon:"⏱",  label:"Tools" },
           { id:"rating",   icon:"⭐", label:"Rate" },

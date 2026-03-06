@@ -818,37 +818,42 @@ function Admin({ onToast }) {
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [deleting, setDeleting] = useState(null);
-  useEffect(() => {
-    (async () => {
-      try {
-        const [s, u] = await Promise.all([apiFetch("/admin/stats"), apiFetch("/admin/users")]);
-        setStats(s); setUsers(u.users || u);
-      } catch(e) { onToast(e.message,"error"); }
-      setLoading(false);
-    })();
-  }, []);
-  const deleteUser = async (id, name) => {
-    if (!window.confirm(`Remove ${name}?`)) return;
-    setDeleting(id);
+
+  const load = async () => {
     try {
-      await apiFetch(`/admin/users/${id}`, { method:"DELETE" });
-      setUsers(p=>p.filter(u=>u.id!==id)); onToast(`${name} removed.`,"success");
-    } catch(e) { onToast(e.message,"error"); }
-    setDeleting(null);
+      const [s, u] = await Promise.all([apiFetch("/admin/stats"), apiFetch("/admin/users")]);
+      setStats(s);
+      setUsers(Array.isArray(u) ? u : (u.users || []));
+    } catch(e) { onToast(e.message, "error"); }
+    setLoading(false);
   };
+
+  useEffect(() => { load(); }, []);
+
+  // Auto-refresh every 15 seconds
+  useEffect(() => {
+    const t = setInterval(() => load(), 15000);
+    return () => clearInterval(t);
+  }, []);
+
   if (loading) return <div className="loading"><div className="spinner"/> Loading dashboard...</div>;
+
   const statCards = [
-    { label:"Total Users", num:stats?.totalUsers||0, icon:"👥" },
-    { label:"Total Matches", num:stats?.totalMatches||0, icon:"💞" },
-    { label:"Total Messages", num:stats?.totalMessages||0, icon:"💬" },
-    { label:"Today's Signups", num:stats?.todaySignups||0, icon:"🆕" },
+    { label:"Total Users",    num:stats?.totalUsers    || 0, icon:"👥" },
+    { label:"Total Matches",  num:stats?.totalMatches  || 0, icon:"💞" },
+    { label:"Total Messages", num:stats?.totalMessages || 0, icon:"💬" },
+    { label:"Today's Signups",num:stats?.todaySignups  || 0, icon:"🆕" },
   ];
+
   return (
     <div>
-      <h2 className="page-title">Admin Dashboard</h2>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"0.25rem" }}>
+        <h2 className="page-title" style={{ marginBottom:0 }}>Admin Dashboard</h2>
+        <button className="btn btn-outline btn-sm" onClick={load}>🔄 Refresh</button>
+      </div>
       <p className="page-sub">Monitor & manage the platform</p>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"1rem", marginBottom:"1.5rem" }}>
+
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:"1rem", marginBottom:"1.5rem" }}>
         {statCards.map(s=>(
           <div key={s.label} className="stat-card">
             <div style={{ fontSize:"1.5rem" }}>{s.icon}</div>
@@ -857,23 +862,44 @@ function Admin({ onToast }) {
           </div>
         ))}
       </div>
-      <div className="card">
-        <h3 style={{ marginBottom:"1rem" }}>All Users ({users.length})</h3>
-        <table className="table">
-          <thead><tr><th>Name</th><th>Email</th><th>College</th><th>Style</th><th>Status</th><th>Actions</th></tr></thead>
-          <tbody>
-            {users.map(u=>(
-              <tr key={u.id}>
-                <td><div style={{ display:"flex", alignItems:"center", gap:"0.6rem" }}><div className="match-avatar" style={{ width:30, height:30, fontSize:"0.75rem", background:userColor(u.id) }}>{u.initials||getInitials(u.name)}</div>{u.name}</div></td>
-                <td style={{ fontSize:"0.82rem", color:"var(--muted)" }}>{u.email}</td>
-                <td>{u.college}</td>
-                <td>{u.style&&<span className="tag tag-style">{u.style}</span>}</td>
-                <td><span className={`badge ${u.is_admin?"badge-admin":"badge-active"}`}>{u.is_admin?"Admin":"Active"}</span></td>
-                <td>{!u.is_admin&&(<button className="btn btn-outline btn-sm" style={{ fontSize:"0.78rem", color:"var(--red)", borderColor:"var(--red)" }} onClick={()=>deleteUser(u.id,u.name)} disabled={deleting===u.id}>{deleting===u.id?"...":"Remove"}</button>)}</td>
+
+      <div className="card" style={{ overflowX:"auto" }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"1rem" }}>
+          <h3>All Users ({users.length})</h3>
+        </div>
+        {users.length === 0 ? (
+          <div style={{ textAlign:"center", padding:"2rem", color:"var(--muted)" }}>No users signed up yet</div>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>College</th>
+                <th>Style</th>
+                <th>Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {users.map(u=>(
+                <tr key={u.id}>
+                  <td>
+                    <div style={{ display:"flex", alignItems:"center", gap:"0.6rem" }}>
+                      <div style={{ width:32, height:32, borderRadius:"50%", background:userColor(u.id), display:"flex", alignItems:"center", justifyContent:"center", fontSize:"0.75rem", fontWeight:700, color:"#fff", overflow:"hidden", flexShrink:0 }}>
+                        {u.photo ? <img src={u.photo} alt={u.name} style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : (u.initials||getInitials(u.name))}
+                      </div>
+                      {u.name}
+                    </div>
+                  </td>
+                  <td style={{ fontSize:"0.82rem", color:"var(--muted)" }}>{u.email}</td>
+                  <td>{u.college}</td>
+                  <td>{u.style && <span className="tag tag-style">{u.style}</span>}</td>
+                  <td><span className={`badge ${u.is_admin?"badge-admin":"badge-active"}`}>{u.is_admin?"Admin":"Active"}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

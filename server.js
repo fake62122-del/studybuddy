@@ -30,6 +30,7 @@ const UserSchema = new mongoose.Schema({
   style: String,
   location: String,
   initials: String,
+  photo: String,
   otp: String,
   otpExpiry: Date,
   verified: { type: Boolean, default: false },
@@ -115,6 +116,7 @@ const safeUser = (u) => u ? ({
   style: u.style,
   location: u.location,
   initials: u.initials,
+  photo: u.photo,
   is_admin: u.isAdmin,
 }) : null;
 
@@ -196,12 +198,13 @@ app.get("/api/profile/me", auth, async (req, res) => {
 app.put("/api/profile/me", auth, async (req, res) => {
   const user = await User.findById(req.user.id);
   if (!user) return res.status(404).json({ error: "Not found" });
-  const { name, college, subjects, style, location } = req.body;
+  const { name, college, subjects, style, location, photo } = req.body;
   if (name) { user.name = name; user.initials = name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase(); }
   if (college) user.college = college;
   if (subjects) user.subjects = subjects;
   if (style) user.style = style;
   if (location) user.location = location;
+  if (photo !== undefined) user.photo = photo;
   await user.save();
   res.json(safeUser(user));
 });

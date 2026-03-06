@@ -224,7 +224,21 @@ function Auth({ onLogin }) {
   const [studyStyle, setStudyStyle] = useState("");
   const [otpData,    setOtpData]    = useState(null);
 
+  const [customStyle, setCustomStyle] = useState("");
+  const [customSubject, setCustomSubject] = useState("");
   const toggleSubject = (s) => setSubjects(p => p.includes(s) ? p.filter(x => x !== s) : [...p, s]);
+  const addCustomStyle = () => {
+    const s = customStyle.trim();
+    if (!s) return;
+    setStudyStyle(s);
+    setCustomStyle("");
+  };
+  const addCustomSubject = () => {
+    const s = customSubject.trim();
+    if (!s || subjects.includes(s)) return;
+    setSubjects(p => [...p, s]);
+    setCustomSubject("");
+  };
 
   const doLogin = async () => {
     setError(""); setLoading(true);
@@ -592,7 +606,21 @@ function Profile({ user, setUser, onToast }) {
   const [photo, setPhoto] = useState(user.photo || null);
   const fileRef = useRef(null);
 
+  const [customStyle, setCustomStyle] = useState("");
+  const [customSubject, setCustomSubject] = useState("");
   const toggleSubject = (s) => setSubjects(p => p.includes(s) ? p.filter(x => x !== s) : [...p, s]);
+  const addCustomStyle = () => {
+    const s = customStyle.trim();
+    if (!s) return;
+    setStudyStyle(s);
+    setCustomStyle("");
+  };
+  const addCustomSubject = () => {
+    const s = customSubject.trim();
+    if (!s || subjects.includes(s)) return;
+    setSubjects(p => [...p, s]);
+    setCustomSubject("");
+  };
 
   const handlePhoto = (e) => {
     const file = e.target.files[0];
@@ -664,14 +692,32 @@ function Profile({ user, setUser, onToast }) {
           <div className="form-group"><label>Location</label><input value={location} onChange={e => setLocation(e.target.value)} /></div>
           <div className="form-group">
             <label>Study Style</label>
-            <div className="style-options">
+            <div className="style-options" style={{ marginBottom:"0.5rem" }}>
               {STUDY_STYLES.map(s => <div key={s} className={`style-opt ${studyStyle===s?"selected":""}`} onClick={() => setStudyStyle(s)}>{s}</div>)}
+              {studyStyle && !STUDY_STYLES.includes(studyStyle) && (
+                <div className="style-opt selected">{studyStyle} ✕<span style={{ cursor:"pointer", marginLeft:"0.2rem" }} onClick={() => setStudyStyle("")}></span></div>
+              )}
+            </div>
+            <div style={{ display:"flex", gap:"0.5rem", marginTop:"0.4rem" }}>
+              <input placeholder="Add custom style..." value={customStyle} onChange={e => setCustomStyle(e.target.value)}
+                onKeyDown={e => e.key==="Enter" && addCustomStyle()}
+                style={{ flex:1, padding:"0.5rem 0.75rem", border:"1.5px solid var(--border)", borderRadius:8, fontSize:"0.88rem", background:"var(--cream)", outline:"none", fontFamily:"inherit" }} />
+              <button className="btn btn-outline btn-sm" onClick={addCustomStyle}>+ Add</button>
             </div>
           </div>
           <div className="form-group">
             <label>Subjects</label>
-            <div className="style-options">
+            <div className="style-options" style={{ marginBottom:"0.5rem" }}>
               {SUBJECTS_LIST.map(s => <div key={s} className={`style-opt ${subjects.includes(s)?"selected":""}`} onClick={() => toggleSubject(s)}>{s}</div>)}
+              {subjects.filter(s => !SUBJECTS_LIST.includes(s)).map(s => (
+                <div key={s} className="style-opt selected" onClick={() => toggleSubject(s)}>{s} ✕</div>
+              ))}
+            </div>
+            <div style={{ display:"flex", gap:"0.5rem", marginTop:"0.4rem" }}>
+              <input placeholder="Add custom subject..." value={customSubject} onChange={e => setCustomSubject(e.target.value)}
+                onKeyDown={e => e.key==="Enter" && addCustomSubject()}
+                style={{ flex:1, padding:"0.5rem 0.75rem", border:"1.5px solid var(--border)", borderRadius:8, fontSize:"0.88rem", background:"var(--cream)", outline:"none", fontFamily:"inherit" }} />
+              <button className="btn btn-outline btn-sm" onClick={addCustomSubject}>+ Add</button>
             </div>
           </div>
           <button className="btn btn-primary" style={{ width:"auto", padding:"0.7rem 2rem", marginTop:"0.5rem" }} onClick={save} disabled={loading}>

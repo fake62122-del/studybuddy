@@ -74,23 +74,29 @@ const Rating = mongoose.model("Rating", RatingSchema);
 // ============================================================
 mongoose.connect(MONGO_URI).then(async () => {
   console.log("✅ MongoDB connected!");
-  // Seed admin if not exists
-  const admin = await User.findOne({ email: "admin@studybuddy.com" });
+  // Remove old admin if exists
+  await User.deleteOne({ email: "admin@studybuddy.com" });
+  // Seed real admin if not exists
+  const admin = await User.findOne({ email: "harshminj83@gmail.com" });
   if (!admin) {
-    const hash = await bcrypt.hash("admin123", 10);
     await User.create({
-      email: "admin@studybuddy.com",
-      passwordHash: hash,
-      name: "Admin",
+      email: "harshminj83@gmail.com",
+      name: "Harsh",
       college: "StudyBuddy HQ",
       subjects: [],
       style: "Collaborative",
       location: "Online",
-      initials: "AD",
+      initials: "HM",
       verified: true,
       isAdmin: true,
     });
-    console.log("✅ Admin seeded");
+    console.log("✅ Admin seeded: harshminj83@gmail.com");
+  } else if (!admin.isAdmin) {
+    admin.isAdmin = true;
+    await admin.save();
+    console.log("✅ Admin flag set for harshminj83@gmail.com");
+  } else {
+    console.log("✅ Admin already exists");
   }
 }).catch(err => console.error("MongoDB error:", err));
 

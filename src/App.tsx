@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { io as socketIO } from "socket.io-client";
 
 const API = "https://studybuddyy-bfop.onrender.com/api";
 
@@ -1236,9 +1237,7 @@ function StudyRooms({ user, onToast }) {
 
   // ── join a room (called with room object) ─────────────────────────────────
   const doJoinRoom = (room) => {
-    // Use window.io loaded via <script> in index.html
-    if (!window.io) { onToast("Connecting... please try again in 2s","error"); return; }
-    const sock = window.io("https://studybuddyy-bfop.onrender.com", {
+    const sock = socketIO("https://studybuddyy-bfop.onrender.com", {
       auth: { token: getToken() },
       transports: ["websocket","polling"],
     });
@@ -1254,7 +1253,7 @@ function StudyRooms({ user, onToast }) {
       onToast(`${name} joined 🎙️`,"success");
       if (localStream.current) createPeer(socketId, true);
     });
-    sock.on("room:peer_left", ({socketId}) => removePeer(socketId));
+    sock.on("room:peer_left", ({socketId, userId}) => { if (socketId) removePeer(socketId); });
     sock.on("rtc:offer", async ({fromSocketId, offer}) => {
       const pc = createPeer(fromSocketId, false);
       await pc.setRemoteDescription(offer);
@@ -1290,7 +1289,8 @@ function StudyRooms({ user, onToast }) {
       localStream.current = await navigator.mediaDevices.getUserMedia({audio:true,video:false});
       setMicOn(true); setMicErr("");
       onToast("🎙️ Mic ON — others can hear you!","success");
-      members.filter(m=>m.userId!==user.id).forEach(m=>{ if(m.socketId) createPeer(m.socketId,true); });
+      // Offer to all existing members in room
+      members.filter(m => m.userId !== user.id && m.socketId).forEach(m => createPeer(m.socketId, true));
     } catch { setMicErr("Microphone access denied. Allow mic in browser settings."); onToast("Mic denied ❌","error"); }
   };
 

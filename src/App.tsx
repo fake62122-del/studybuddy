@@ -1549,161 +1549,130 @@ function AIAssistant({ user }) {
   const SUGGESTIONS = [
     "Explain Newton's laws of motion",
     "How does photosynthesis work?",
-    "Solve: 2x² + 5x - 3 = 0",
-    "Explain Big O notation",
-    "What is the difference between mitosis and meiosis?",
-    "Explain recursion with an example",
-    "Summarize the French Revolution",
+    "Solve: 2x\u00b2 + 5x - 3 = 0",
+    "Explain Big O notation with examples",
+    "Difference between mitosis and meiosis",
+    "Explain recursion with code",
+    "Summarise the French Revolution",
     "How does machine learning work?",
   ];
+  const SUBJECTS = ["General","Math","Science","History","CS/Coding","Physics","Chemistry","Literature","Economics"];
 
-  const [messages, setMessages] = useState([
-    { role: "assistant", content: "Hi! I'm your AI Study Assistant 🎓
-
-Ask me anything — math, science, history, coding, essays — I'm here to help you understand, not just give answers!
-
-What are you studying today?" }
-  ]);
-  const [input, setInput]       = useState("");
-  const [loading, setLoading]   = useState(false);
-  const [subject, setSubject]   = useState("General");
-  const bottomRef               = useRef(null);
-  const textareaRef             = useRef(null);
-
-  const SUBJECTS = ["General", "Math", "Science", "History", "CS/Coding", "Literature", "Economics", "Physics", "Chemistry"];
+  const [msgs, setMsgs]       = useState([{ role:"assistant", content:"Hi! I\u2019m your AI Study Assistant \ud83c\udf93\n\nAsk me anything \u2014 maths, science, history, coding, essays. I\u2019ll explain step by step, not just give answers!\n\nWhat are you studying today?" }]);
+  const [input, setInput]     = useState("");
+  const [loading, setLoading] = useState(false);
+  const [subject, setSubject] = useState("General");
+  const bottomRef             = useRef(null);
+  const taRef                 = useRef(null);
 
   useEffect(() => {
-    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 80);
-  }, [messages, loading]);
+    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior:"smooth" }), 80);
+  }, [msgs, loading]);
 
-  const formatContent = (text) => {
-    // Simple markdown-like rendering
-    return text
-      .replace(/```(\w*)
-?([\s\S]*?)```/g, (_, lang, code) =>
-        `<pre><code>${code.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</code></pre>`)
-      .replace(/`([^`]+)`/g, "<code>$1</code>")
-      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-      .replace(/\*(.+?)\*/g, "<em>$1</em>")
-      .replace(/^#{1,3}\s(.+)$/gm, "<strong>$1</strong>")
-      .replace(/
-/g, "<br/>");
+  const fmt = (text) => {
+    let t = text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    t = t.replace(/```[\w]*\n?([\s\S]*?)```/g, (_,c) => `<pre><code>${c}</code></pre>`);
+    t = t.replace(/`([^`]+)`/g, "<code>$1</code>");
+    t = t.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    t = t.replace(/\*(.+?)\*/g, "<em>$1</em>");
+    t = t.replace(/^#{1,3} (.+)$/gm, "<strong>$1</strong>");
+    t = t.replace(/\n/g, "<br/>");
+    return t;
   };
 
-  const send = async (text) => {
-    const q = (text || input).trim();
+  const send = async (preset) => {
+    const q = (preset || input).trim();
     if (!q || loading) return;
     setInput("");
-
-    const newMsg = { role: "user", content: q };
-    const updated = [...messages, newMsg];
-    setMessages(updated);
+    if (taRef.current) { taRef.current.style.height = "auto"; }
+    const history = [...msgs, { role:"user", content:q }];
+    setMsgs(history);
     setLoading(true);
-
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const data = await apiFetch("/ai/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          system: `You are an expert AI Study Assistant inside StudyBuddy, a peer study platform. The student's name is ${user?.name || "Student"} and they are studying ${subject}. 
-
-Your role:
-- Explain concepts clearly, step by step
-- For math/science: show working, not just answers
-- Use examples relevant to student life
-- Be encouraging and patient
-- Format responses nicely using **bold** for key terms, code blocks for code/equations
-- Keep responses concise but complete
-- If it's a homework problem, guide don't just solve — ask them to try a step first when appropriate`,
-          messages: updated.map(m => ({ role: m.role, content: m.content }))
-        })
+        body: {
+          messages: history.map(m => ({ role:m.role, content:m.content })),
+          subject,
+          userName: user?.name || "Student"
+        }
       });
-      const data = await res.json();
-      const reply = data.content?.[0]?.text || "Sorry, I couldn't process that. Try again!";
-      setMessages(p => [...p, { role: "assistant", content: reply }]);
-    } catch (e) {
-      setMessages(p => [...p, { role: "assistant", content: "⚠️ Connection error. Please try again in a moment." }]);
+      const reply = data?.content || "Sorry, something went wrong. Please try again!";
+      setMsgs(p => [...p, { role:"assistant", content:reply }]);
+    } catch(e) {
+      setMsgs(p => [...p, { role:"assistant", content:"\u26a0\ufe0f " + (e.message||"Connection error — please try again.") }]);
     }
     setLoading(false);
   };
 
-  const handleKey = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
-  };
-
-  const clearChat = () => setMessages([{ role:"assistant", content:"Chat cleared! What would you like to study? 📚" }]);
+  const onKey = (e) => { if (e.key==="Enter" && !e.shiftKey) { e.preventDefault(); send(); } };
+  const onInput = (e) => { setInput(e.target.value); e.target.style.height="auto"; e.target.style.height=Math.min(e.target.scrollHeight,120)+"px"; };
 
   return (
     <div className="ai-wrap">
+      {/* Header */}
       <div className="ai-header">
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:"0.75rem" }}>
           <div>
-            <h2 style={{ fontFamily:"'Clash Display',sans-serif", fontSize:"1.4rem", fontWeight:700, display:"flex", alignItems:"center", gap:"0.5rem" }}>
-              <span style={{ background:"linear-gradient(135deg,#7c3aed,#2563eb)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>✦ AI Study Assistant</span>
+            <h2 style={{ fontFamily:"'Clash Display',sans-serif", fontSize:"1.35rem", fontWeight:700 }}>
+              <span style={{ background:"linear-gradient(135deg,#7c3aed,#2563eb)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>\u2726 AI Study Assistant</span>
             </h2>
-            <p style={{ color:"var(--muted)", fontSize:"0.83rem", marginTop:"0.1rem" }}>Ask any academic question — I'll explain it clearly</p>
+            <p style={{ color:"var(--muted)", fontSize:"0.82rem", marginTop:"0.1rem" }}>Ask any academic question \u2014 I\u2019ll explain it clearly</p>
           </div>
           <div style={{ display:"flex", gap:"0.5rem", alignItems:"center" }}>
             <select value={subject} onChange={e=>setSubject(e.target.value)}
               style={{ border:"1.5px solid var(--border)", borderRadius:8, padding:"0.4rem 0.7rem", fontSize:"0.82rem", background:"var(--cream)", outline:"none", fontFamily:"'DM Sans',sans-serif", cursor:"pointer" }}>
               {SUBJECTS.map(s => <option key={s}>{s}</option>)}
             </select>
-            <button onClick={clearChat} style={{ background:"none", border:"1.5px solid var(--border)", borderRadius:8, padding:"0.4rem 0.75rem", fontSize:"0.8rem", cursor:"pointer", color:"var(--muted)" }}>
-              🗑 Clear
+            <button onClick={()=>setMsgs([{role:"assistant",content:"Chat cleared! What would you like to study? \ud83d\udcda"}])}
+              style={{ background:"none", border:"1.5px solid var(--border)", borderRadius:8, padding:"0.4rem 0.75rem", fontSize:"0.8rem", cursor:"pointer", color:"var(--muted)" }}>
+              \ud83d\uddd1 Clear
             </button>
           </div>
         </div>
-        {/* Suggestions */}
-        {messages.length <= 1 && (
-          <div style={{ marginTop:"0.9rem", display:"flex", gap:"0.5rem", flexWrap:"wrap" }}>
-            {SUGGESTIONS.slice(0,5).map((s,i) => (
-              <div key={i} className="ai-suggestion" onClick={() => send(s)}>{s}</div>
+        {msgs.length <= 1 && (
+          <div style={{ marginTop:"0.9rem", display:"flex", gap:"0.45rem", flexWrap:"wrap" }}>
+            {SUGGESTIONS.map((s,i) => (
+              <div key={i} className="ai-suggestion" onClick={()=>send(s)}>{s}</div>
             ))}
           </div>
         )}
       </div>
 
+      {/* Messages */}
       <div className="ai-messages">
-        {messages.map((m, i) => (
-          <div key={i} className={`ai-bubble-wrap ${m.role}`}>
-            <div className="ai-avatar" style={{
-              background: m.role==="assistant" ? "linear-gradient(135deg,#7c3aed,#2563eb)" : userColor(user?.id),
-              color: "#fff", fontSize: m.role==="assistant" ? "1rem" : "0.75rem"
-            }}>
-              {m.role==="assistant" ? "✦" : (user?.initials || getInitials(user?.name||"U"))}
+        {msgs.map((m,i) => (
+          <div key={i} className={"ai-bubble-wrap " + m.role}>
+            <div className="ai-avatar" style={{ background: m.role==="assistant" ? "linear-gradient(135deg,#7c3aed,#2563eb)" : userColor(user?.id), color:"#fff", fontSize: m.role==="assistant"?"1rem":"0.75rem" }}>
+              {m.role==="assistant" ? "\u2726" : (user?.initials||getInitials(user?.name||"U"))}
             </div>
-            <div className={`ai-bubble ${m.role}`}
-              dangerouslySetInnerHTML={{ __html: formatContent(m.content) }} />
+            <div className={"ai-bubble " + m.role} dangerouslySetInnerHTML={{ __html: fmt(m.content) }} />
           </div>
         ))}
-
         {loading && (
           <div className="ai-bubble-wrap assistant">
-            <div className="ai-avatar" style={{ background:"linear-gradient(135deg,#7c3aed,#2563eb)", color:"#fff" }}>✦</div>
+            <div className="ai-avatar" style={{ background:"linear-gradient(135deg,#7c3aed,#2563eb)", color:"#fff" }}>\u2726</div>
             <div className="ai-bubble assistant">
-              <div className="ai-typing">
-                <div className="ai-dot"/><div className="ai-dot"/><div className="ai-dot"/>
-              </div>
+              <div className="ai-typing"><div className="ai-dot"/><div className="ai-dot"/><div className="ai-dot"/></div>
             </div>
           </div>
         )}
-        <div ref={bottomRef} />
+        <div ref={bottomRef}/>
       </div>
 
+      {/* Input */}
       <div className="ai-input-row">
-        <textarea ref={textareaRef} className="ai-input" rows={1} value={input}
-          onChange={e => { setInput(e.target.value); e.target.style.height="auto"; e.target.style.height=Math.min(e.target.scrollHeight,120)+"px"; }}
-          onKeyDown={handleKey}
+        <textarea ref={taRef} className="ai-input" rows={1} value={input}
+          onChange={onInput} onKeyDown={onKey}
           placeholder="Ask anything... (Shift+Enter for new line)" />
-        <button className="ai-send" onClick={() => send()} disabled={loading || !input.trim()}>
-          {loading ? "⏳" : "➤"}
+        <button className="ai-send" onClick={()=>send()} disabled={loading || !input.trim()}>
+          {loading ? "\u23f3" : "\u27a4"}
         </button>
       </div>
     </div>
   );
 }
+
 
 function MatchPopup({ match, onClose }) {
   return (

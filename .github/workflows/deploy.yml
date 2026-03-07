@@ -14,10 +14,10 @@ jobs:
         with:
           node-version: 18
 
-      - name: Install dependencies
+      - name: Install frontend dependencies
         run: |
-          npm install vite @vitejs/plugin-react react react-dom @types/react @types/react-dom typescript --save-dev
-          npm install
+          npm install react react-dom socket.io-client
+          npm install --save-dev vite @vitejs/plugin-react typescript @types/react @types/react-dom
 
       - name: Build
         run: npx vite build

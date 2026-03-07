@@ -346,6 +346,38 @@ app.get("/api/ratings/:userId", auth, async (req, res) => {
 });
 
 // ============================================================
+// AI PROXY (avoids CORS + hides API key)
+// ============================================================
+app.post("/api/ai/chat", auth, async (req, res) => {
+  try {
+    const { messages, subject, userName } = req.body;
+    if (!messages || !Array.isArray(messages)) return res.status(400).json({ error:"messages required" });
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": process.env.ANTHROPIC_API_KEY || "",
+        "anthropic-version": "2023-06-01"
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 1024,
+        system: `You are an expert AI Study Assistant inside StudyBuddy, a peer study platform. Student name: ${userName || "Student"}. Subject focus: ${subject || "General"}. Rules: explain clearly step by step, use **bold** for key terms, use code blocks for code, be encouraging and concise.`,
+        messages: messages.slice(-20) // last 20 for context window
+      })
+    });
+
+    const data = await response.json();
+    if (!response.ok) return res.status(500).json({ error: data.error?.message || "AI error" });
+    res.json({ content: data.content?.[0]?.text || "" });
+  } catch(e) {
+    console.error("AI proxy error:", e.message);
+    res.status(500).json({ error: "AI service unavailable" });
+  }
+});
+
+// ============================================================
 // ADMIN
 // ============================================================
 app.get("/api/admin/stats", auth, async (req, res) => {

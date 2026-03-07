@@ -346,47 +346,43 @@ app.get("/api/ratings/:userId", auth, async (req, res) => {
 });
 
 // ============================================================
-// AI PROXY — Google Gemini 2.0 Flash (FREE: 1500 req/day)
+// ============================================================
+// AI PROXY — Groq + Llama 3 (FREE, no region restrictions)
 // ============================================================
 app.post("/api/ai/chat", auth, async (req, res) => {
   try {
     const { messages, subject, userName } = req.body;
     if (!messages || !Array.isArray(messages)) return res.status(400).json({ error:"messages required" });
 
-    const apiKey = process.env.GEMINI_API_KEY || "";
-    if (!apiKey) return res.status(500).json({ error: "GEMINI_API_KEY not set on server" });
+    const apiKey = process.env.GROQ_API_KEY || "";
+    if (!apiKey) return res.status(500).json({ error: "GROQ_API_KEY not configured on server" });
 
-    // Convert messages to Gemini format
-    // Gemini uses "user" and "model" roles (not "assistant")
-    const systemPrompt = `You are an expert AI Study Assistant inside StudyBuddy, a peer study platform. Student name: ${userName || "Student"}. Subject focus: ${subject || "General"}. Rules: explain clearly step by step, use **bold** for key terms, use code blocks for code, be encouraging and concise. Keep responses under 400 words unless asked for more detail.`;
+    const systemPrompt = `You are an expert AI Study Assistant inside StudyBuddy. Student: ${userName||"Student"}. Subject: ${subject||"General"}. Be clear, step-by-step. Use **bold** for key terms. Use code blocks for code. Be encouraging. Keep responses concise but complete.`;
 
-    const geminiMessages = [];
-    for (const m of messages.slice(-20)) {
-      geminiMessages.push({
-        role: m.role === "assistant" ? "model" : "user",
-        parts: [{ text: m.role === "user" && geminiMessages.length === 0
-          ? systemPrompt + "\n\nStudent: " + m.content
-          : m.content }]
-      });
-    }
-
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-    const response = await fetch(url, {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
+      },
       body: JSON.stringify({
-        contents: geminiMessages,
-        generationConfig: { maxOutputTokens: 1024, temperature: 0.7 }
+        model: "llama3-8b-8192",
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...messages.slice(-20).map(m => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.content }))
+        ],
+        max_tokens: 1024,
+        temperature: 0.7
       })
     });
 
     const data = await response.json();
     if (!response.ok) {
-      console.error("Gemini error:", JSON.stringify(data));
-      return res.status(500).json({ error: data.error?.message || "Gemini API error" });
+      console.error("Groq error:", JSON.stringify(data));
+      return res.status(500).json({ error: data.error?.message || "AI error" });
     }
 
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I could not generate a response.";
+    const text = data.choices?.[0]?.message?.content || "Sorry, I could not generate a response.";
     res.json({ content: text });
   } catch(e) {
     console.error("AI proxy error:", e.message);
@@ -458,7 +454,7 @@ io.on("connection", (socket) => {
       if (roomMembers[currentRoom]) {
         delete roomMembers[currentRoom][socket.id];
         io.to(`room_${currentRoom}`).emit("room:members", Object.values(roomMembers[currentRoom]));
-        io.to(`room_${currentRoom}`).emit("room:peer_left", { userId: socket.user.id });
+        io.to(`room_${currentRoom}`).emit("room:peer_left", { userId: socket.user.id, socketId: socket.id });
       }
     }
     currentRoom = roomId;
@@ -480,7 +476,7 @@ io.on("connection", (socket) => {
       const m = roomMembers[currentRoom][socket.id];
       delete roomMembers[currentRoom][socket.id];
       io.to(`room_${currentRoom}`).emit("room:members", Object.values(roomMembers[currentRoom]));
-      io.to(`room_${currentRoom}`).emit("room:peer_left", { userId: socket.user.id });
+      io.to(`room_${currentRoom}`).emit("room:peer_left", { userId: socket.user.id, socketId: socket.id });
       if (m) io.to(`room_${currentRoom}`).emit("room:chat", { sys: true, text: `${m.name} left the room` });
     }
     currentRoom = null;
@@ -506,7 +502,7 @@ io.on("connection", (socket) => {
       const m = roomMembers[currentRoom][socket.id];
       delete roomMembers[currentRoom][socket.id];
       io.to(`room_${currentRoom}`).emit("room:members", Object.values(roomMembers[currentRoom]));
-      io.to(`room_${currentRoom}`).emit("room:peer_left", { userId: socket.user.id });
+      io.to(`room_${currentRoom}`).emit("room:peer_left", { userId: socket.user.id, socketId: socket.id });
       if (m) io.to(`room_${currentRoom}`).emit("room:chat", { sys: true, text: `${m.name} disconnected` });
     }
     console.log(`User ${socket.user.id} disconnected`);

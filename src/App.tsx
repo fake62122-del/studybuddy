@@ -941,11 +941,11 @@ function Messages({ user, onToast }) {
             </div>
           )}
           {matches.map(m => (
-            <div key={m.match_id} className={`match-row ${active?.match_id === m.match_id ? "active" : ""}`} onClick={() => setActive(m)}>
+            <div key={m.match_id} className={`chat-item ${active?.match_id === m.match_id ? "active" : ""}`} onClick={() => setActive(m)}>
               <div className="match-avatar" style={{ background:userColor(m.id) }}>{m.photo ? <img src={m.photo} alt={m.name} /> : (m.initials || getInitials(m.name))}</div>
-              <div className="match-info">
-                <div className="match-name">{m.name}</div>
-                <div className="match-preview">{m.last_message || "Say hi! 👋"}</div>
+              <div className="chat-item-info">
+                <div className="chat-item-name">{m.name}</div>
+                <div className="chat-item-preview">{m.last_message || "Say hi! 👋"}</div>
               </div>
               {m.unread_count > 0 && <div className="unread-dot" />}
             </div>
@@ -991,6 +991,7 @@ function Messages({ user, onToast }) {
 }
 
 function Profile({ user, setUser, onToast }) {
+  const [profileTab, setProfileTab] = useState("edit"); // "edit" | "rate"
   const [name, setName] = useState(user.name || "");
   const [college, setCollege] = useState(user.college || "");
   const [location, setLocation] = useState(user.location || "");
@@ -1066,7 +1067,26 @@ function Profile({ user, setUser, onToast }) {
           <p style={{ marginTop:"0.3rem", fontSize:"0.85rem" }}>{(user.subjects||[]).join(", ")}</p>
         </div>
       </div>
-      <div style={{ maxWidth:600 }}>
+      {/* Profile Tabs */}
+      <div style={{ display:"flex", gap:"0.5rem", marginBottom:"1.2rem" }}>
+        {[{id:"edit",label:"✏️ Edit Profile"},{id:"rate",label:"⭐ Rate Partners"}].map(t => (
+          <button key={t.id}
+            onClick={() => setProfileTab(t.id)}
+            style={{
+              padding:"0.45rem 1.1rem", borderRadius:"var(--r-sm)", border:"1px solid var(--line2)",
+              background: profileTab===t.id ? "var(--pg)" : "var(--panel)",
+              color: profileTab===t.id ? "#fff" : "var(--t2)",
+              fontWeight:700, cursor:"pointer", fontSize:"0.84rem",
+              fontFamily:"'Bricolage Grotesque',sans-serif",
+              boxShadow: profileTab===t.id ? "0 0 12px var(--glow)" : "none",
+              transition:"all 0.18s",
+            }}>{t.label}</button>
+        ))}
+      </div>
+
+      {profileTab === "rate" && <RatingInProfile user={user} onToast={onToast} />}
+
+      {profileTab === "edit" && <div style={{ maxWidth:600 }}>
         <div className="card">
           <h3 style={{ marginBottom:"1.2rem" }}>Edit Profile</h3>
           <div className="form-group" style={{ textAlign:"center", marginBottom:"1.5rem" }}>
@@ -1118,7 +1138,70 @@ function Profile({ user, setUser, onToast }) {
             {loading ? "Saving..." : "Save Changes"}
           </button>
         </div>
+      </div>}
+    </div>
+  );
+}
+
+// Embedded Rating inside Profile
+function RatingInProfile({ user, onToast }) {
+  const [matches, setMatches] = useState([]);
+  const [selected, setSelected] = useState("");
+  const [ratings, setRatings] = useState({ punctuality:0, helpfulness:0, focus:0 });
+  const [feedback, setFeedback] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  useEffect(() => {
+    (async () => {
+      try { const d = await apiFetch("/matches"); if(Array.isArray(d)){ setMatches(d); if(d.length>0) setSelected(String(d[0].id)); } }
+      catch {} setLoading(false);
+    })();
+  }, []);
+  const star = (cat, val) => setRatings(p => ({ ...p, [cat]:val }));
+  const submit = async () => {
+    if (!selected || !ratings.punctuality || !ratings.helpfulness || !ratings.focus) { onToast("Please fill all star ratings","error"); return; }
+    setSubmitting(true);
+    try { await apiFetch("/ratings", { method:"POST", body:{ toId:selected, ...ratings, feedback } }); setSubmitted(true); onToast("Rating submitted! 🙏","success"); }
+    catch(e) { onToast(e.message,"error"); }
+    setSubmitting(false);
+  };
+  const StarRow = ({ label, cat }) => (
+    <div className="rating-row">
+      <div style={{ fontWeight:500, fontSize:"0.88rem" }}>{label}</div>
+      <div>{[1,2,3,4,5].map(v=><span key={v} className="star" onClick={()=>star(cat,v)}>{v<=ratings[cat]?"⭐":"☆"}</span>)}</div>
+    </div>
+  );
+  if (loading) return <div className="loading"><div className="spinner"/></div>;
+  if (!matches.length) return <div className="card" style={{ textAlign:"center", padding:"2rem", color:"var(--t2)" }}><div style={{ fontSize:"2rem", marginBottom:"0.75rem" }}>🤝</div>Get some matches first to rate them!</div>;
+  return (
+    <div className="card" style={{ maxWidth:500 }}>
+      <h3 style={{ marginBottom:"1rem" }}>⭐ Rate a Study Partner</h3>
+      <div className="form-group">
+        <label>Select Partner</label>
+        <select value={selected} onChange={e=>{ setSelected(e.target.value); setSubmitted(false); setRatings({punctuality:0,helpfulness:0,focus:0}); }}>
+          {matches.map(m=><option key={m.match_id} value={m.id}>{m.name}</option>)}
+        </select>
       </div>
+      {!submitted ? (
+        <>
+          <StarRow label="⏰ Punctuality" cat="punctuality"/>
+          <StarRow label="🤝 Helpfulness" cat="helpfulness"/>
+          <StarRow label="🎯 Focus" cat="focus"/>
+          <div className="form-group" style={{ marginTop:"1rem" }}>
+            <label>Written Feedback (optional)</label>
+            <textarea rows={3} placeholder="Share your experience..." style={{ resize:"vertical" }} value={feedback} onChange={e=>setFeedback(e.target.value)}/>
+          </div>
+          <button className="btn btn-primary" style={{ marginTop:"0.5rem" }} onClick={submit} disabled={submitting}>{submitting?"Submitting...":"Submit Rating"}</button>
+        </>
+      ) : (
+        <div style={{ textAlign:"center", padding:"2rem", color:"var(--ok)" }}>
+          <div style={{ fontSize:"2.5rem" }}>✅</div>
+          <div style={{ fontWeight:700, fontSize:"1.1rem", marginTop:"0.5rem" }}>Rating Submitted!</div>
+          <div style={{ color:"var(--t2)", fontSize:"0.88rem", marginTop:"0.3rem" }}>Thank you for helping the community.</div>
+          <button className="btn btn-outline btn-sm" style={{ marginTop:"1rem" }} onClick={()=>{ setSubmitted(false); setRatings({punctuality:0,helpfulness:0,focus:0}); setFeedback(""); }}>Rate Another</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -1411,7 +1494,7 @@ function Friends({ user, onToast, onMessage }) {
                     <div style={{ fontSize:"0.8rem", color:"var(--t2)" }}>📍 {m.college || "Unknown"}</div>
                   </div>
                   <button onClick={() => setExpanded(isOpen ? null : m.match_id)}
-                    style={{ background:"var(--panel)", border:"1.5px solid var(--line2)", borderRadius:8, padding:"0.3rem 0.7rem", fontSize:"0.78rem", cursor:"pointer", fontWeight:600, color:"var(--base)", marginBottom:"0.2rem", flexShrink:0 }}>
+                    style={{ background:"var(--panel)", border:"1.5px solid var(--line2)", borderRadius:8, padding:"0.3rem 0.7rem", fontSize:"0.78rem", cursor:"pointer", fontWeight:600, color:"var(--t1)", marginBottom:"0.2rem", flexShrink:0 }}>
                     {isOpen ? "▲ Hide" : "▼ View"}
                   </button>
                 </div>
@@ -2174,7 +2257,6 @@ export default function App() {
     { id:"rooms",    label:"🎧 Rooms" },
     { id:"ai",       label:"✦ AI Tutor" },
     { id:"tools",    label:"⏱ Study Tools" },
-    { id:"rating",   label:"⭐ Rate" },
     { id:"profile",  label:"👤 Profile" },
     ...(user?.is_admin ? [{ id:"admin", label:"⚙ Admin" }] : []),
   ];
@@ -2204,7 +2286,6 @@ export default function App() {
           {tab==="rooms"    && <StudyRooms user={user} onToast={showToast}/>}
           {tab==="ai"       && <AIAssistant user={user}/>}
           {tab==="tools"    && <StudyTools onToast={showToast}/>}
-          {tab==="rating"   && <Rating user={user} onToast={showToast}/>}
           {tab==="profile"  && <Profile user={user} setUser={setUser} onToast={showToast}/>}
           {tab==="admin"    && <Admin onToast={showToast}/>}
         </div>
@@ -2219,7 +2300,6 @@ export default function App() {
           { id:"rooms",    icon:"🎧", label:"Rooms" },
           { id:"ai",       icon:"✦",  label:"AI Tutor" },
           { id:"tools",    icon:"⏱",  label:"Tools" },
-          { id:"rating",   icon:"⭐", label:"Rate" },
           { id:"profile",  icon:"👤", label:"Profile" },
           ...(user?.is_admin ? [{ id:"admin", icon:"⚙", label:"Admin" }] : []),
         ].map(t => (

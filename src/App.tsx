@@ -491,12 +491,17 @@ const style = `
   }
   .room-timer-display { font-family:'Bricolage Grotesque',sans-serif; font-size:3.8rem; font-weight:800; text-align:center; letter-spacing:-3px; color:var(--t1); }
   .room-phase { text-align:center; font-size:0.82rem; color:var(--t2); margin-bottom:0.8rem; }
-  .lofi-player { background:rgba(255,255,255,0.03); border:1px solid var(--line); border-radius:var(--r); padding:0.9rem; margin-top:1rem; display:flex; align-items:center; gap:0.85rem; }
-  .lofi-info { flex:1; min-width:0; }
-  .lofi-title { font-weight:700; font-size:0.84rem; color:var(--t1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .lofi-sub { font-size:0.69rem; color:var(--t3); margin-top:0.08rem; }
-  .lofi-btn { width:36px; height:36px; border-radius:50%; background:var(--pg); border:none; color:#fff; font-size:0.85rem; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all 0.15s; box-shadow:0 0 10px var(--glow); }
-  .lofi-btn:hover { transform:scale(1.12); box-shadow:0 0 18px var(--glow); }
+  .sp-wrap { margin-top:1rem; }
+  .sp-chip { cursor:pointer; padding:0.3rem 0.75rem; border-radius:99px; font-size:0.72rem; font-weight:600; border:none; transition:all 0.2s; background:rgba(255,255,255,0.07); color:#aaa; }
+  .sp-chip.active { background:#1DB954; color:#fff; box-shadow:0 0 12px #1DB95488; }
+  .sp-chip:hover { background:rgba(255,255,255,0.12); color:#fff; }
+  .sp-open-btn { width:100%; padding:0.7rem; border-radius:var(--r); background:rgba(29,185,84,0.1); border:1px solid rgba(29,185,84,0.3); color:#1DB954; cursor:pointer; font-size:0.84rem; font-weight:700; display:flex; align-items:center; justify-content:center; gap:0.5rem; transition:all 0.2s; font-family:'Bricolage Grotesque',sans-serif; }
+  .sp-open-btn:hover { background:rgba(29,185,84,0.18); }
+  .sp-player-box { border-radius:var(--r-lg); overflow:hidden; border:1px solid rgba(29,185,84,0.2); }
+  .sp-player-footer { background:rgba(0,0,0,0.4); padding:0.45rem 0.85rem; display:flex; align-items:center; justify-content:space-between; border-top:1px solid rgba(255,255,255,0.06); }
+  .sp-note { font-size:0.68rem; color:#888; }
+  .sp-close { background:none; border:none; color:#666; cursor:pointer; font-size:0.72rem; padding:0.15rem 0.4rem; border-radius:4px; transition:color 0.15s; }
+  .sp-close:hover { color:#aaa; }
   .member-chip { display:flex; align-items:center; gap:0.32rem; background:rgba(255,255,255,0.04); border:1px solid var(--line); border-radius:99px; padding:0.25rem 0.65rem 0.25rem 0.25rem; font-size:0.73rem; color:var(--t2); }
 
   /* Private room modal */
@@ -645,7 +650,7 @@ const style = `
     /* Rooms */
     .room-inside { padding:1.1rem; border-radius:var(--r-lg); }
     .room-timer-display { font-size:3rem; }
-    .lofi-player { padding:0.75rem; gap:0.7rem; }
+
     .private-room-box { border-radius:var(--r-lg); }
 
     /* AI */
@@ -1646,11 +1651,13 @@ function Friends({ user, onToast, onMessage }) {
 }
 
 
-const LOFI_TRACKS = [
-  { title: "Lo-Fi Hip Hop", sub: "Beats to study/relax to", emoji: "🎵", url: "https://www.youtube.com/embed/jfKfPfyJRdk?autoplay=1&controls=0" },
-  { title: "Jazz Cafe Vibes", sub: "Smooth focus music", emoji: "🎷", url: "https://www.youtube.com/embed/VMAPTo7RVCo?autoplay=1&controls=0" },
-  { title: "Rainy Day Focus", sub: "Rain + ambient sounds", emoji: "🌧️", url: "https://www.youtube.com/embed/mPZkdNFkNps?autoplay=1&controls=0" },
-  { title: "Deep Focus", sub: "No distractions", emoji: "🧠", url: "https://www.youtube.com/embed/5qap5aO4i9A?autoplay=1&controls=0" },
+const SPOTIFY_PLAYLISTS = [
+  { title: "Lo-Fi Study Beats", sub: "Chill beats to study & relax", emoji: "🎵", id: "37i9dQZF1DWWQRwui0ExPn" },
+  { title: "Deep Focus",        sub: "Keep calm and focus",          emoji: "🧠", id: "37i9dQZF1DWZeKCadgRdKQ" },
+  { title: "Focus Flow",        sub: "Uptempo instrumental beats",   emoji: "⚡", id: "37i9dQZF1DWZZbwlv3Vmtr" },
+  { title: "Peaceful Piano",    sub: "Relax and indulge",            emoji: "🎹", id: "37i9dQZF1DX4sWSpwq3LiO" },
+  { title: "Ambient Chill",     sub: "Soft background soundscapes",  emoji: "🌊", id: "37i9dQZF1DX3Ogo9pFvBkY" },
+  { title: "Coding Mode",       sub: "Music for late-night coding",  emoji: "💻", id: "37i9dQZF1DX5trt9i14X7j" },
 ];
 
 const PRESET_ROOMS = [
@@ -1685,8 +1692,8 @@ function StudyRooms({ user, onToast }) {
   const [chatInput, setChatInput] = useState("");
   const [micOn, setMicOn]         = useState(false);
   const [micErr, setMicErr]       = useState("");
-  const [trackIdx, setTrackIdx]   = useState(0);
-  const [playing, setPlaying]     = useState(false);
+  const [spIdx, setSpIdx]         = useState(0);
+  const [spOpen, setSpOpen]       = useState(false);
   const [pomSecs, setPomSecs]     = useState(25*60);
   const [pomOn, setPomOn]         = useState(false);
   const [pomMode, setPomMode]     = useState("focus");
@@ -1898,14 +1905,14 @@ function StudyRooms({ user, onToast }) {
     setActiveRoom(room);
     setMembers([]); setChat([{ id: 1, sys: true, text: `Welcome to ${room.name}! 🎯` }]);
     setPomSecs(25*60); setPomMode("focus"); setPomOn(false);
-    setPlaying(false); setTrackIdx(0); setMicErr("");
+    setSpOpen(false); setSpIdx(0); setMicErr("");
     setView("room");
   };
 
   const leaveRoom = () => {
     cleanupAll();
     setActiveRoom(null); setMembers([]); setChat([]);
-    setPomOn(false); setPlaying(false); setMicOn(false);
+    setPomOn(false); setSpOpen(false); setMicOn(false);
     setView("list");
   };
 
@@ -1972,7 +1979,7 @@ function StudyRooms({ user, onToast }) {
     doJoinRoom(room);
   };
 
-  const track = LOFI_TRACKS[trackIdx];
+
 
   // ════════════════════════════════════════════════════════════════════════
   // VIEWS
@@ -2138,25 +2145,49 @@ function StudyRooms({ user, onToast }) {
               </div>
             </div>
 
-            {/* Lo-Fi Player */}
-            <div className="lofi-player">
-              <div style={{fontSize:"1.6rem"}}>{track.emoji}</div>
-              <div className="lofi-info">
-                <div className="lofi-title">{track.title}</div>
-                <div className="lofi-sub">{track.sub}</div>
+            {/* ── Spotify Player ── */}
+            <div className="sp-wrap">
+
+              {/* Playlist chips */}
+              <div style={{display:"flex",gap:"0.3rem",flexWrap:"wrap",marginBottom:"0.7rem"}}>
+                {SPOTIFY_PLAYLISTS.map((pl,i) => (
+                  <button key={i}
+                    className={`sp-chip${spIdx===i && spOpen?" active":""}`}
+                    onClick={()=>{ setSpIdx(i); setSpOpen(true); }}>
+                    {pl.emoji} {pl.title}
+                  </button>
+                ))}
               </div>
-              <button className="lofi-btn" onClick={()=>setTrackIdx(p=>(p-1+LOFI_TRACKS.length)%LOFI_TRACKS.length)}>⏮</button>
-              <button className="lofi-btn" onClick={()=>setPlaying(p=>!p)}>{playing?"⏸":"▶"}</button>
-              <button className="lofi-btn" onClick={()=>setTrackIdx(p=>(p+1)%LOFI_TRACKS.length)}>⏭</button>
-            </div>
-            {playing && <iframe src={track.url} style={{display:"none"}} allow="autoplay" />}
-            <div style={{marginTop:"0.6rem",display:"flex",gap:"0.35rem",flexWrap:"wrap"}}>
-              {LOFI_TRACKS.map((t,i)=>(
-                <div key={i} onClick={()=>{setTrackIdx(i);setPlaying(true);}}
-                  style={{cursor:"pointer",padding:"0.22rem 0.65rem",borderRadius:20,fontSize:"0.74rem",background:trackIdx===i?"var(--p)":"rgba(255,255,255,0.08)",color:trackIdx===i?"#fff":"#aaa",fontWeight:trackIdx===i?600:400}}>
-                  {t.emoji} {t.title}
+
+              {/* Open button */}
+              {!spOpen && (
+                <button className="sp-open-btn" onClick={()=>setSpOpen(true)}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="#1DB954"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+                  Open Spotify Player
+                </button>
+              )}
+
+              {/* Embedded Spotify iframe */}
+              {spOpen && (
+                <div className="sp-player-box">
+                  <iframe
+                    key={spIdx}
+                    src={`https://open.spotify.com/embed/playlist/${SPOTIFY_PLAYLISTS[spIdx].id}?utm_source=generator&theme=0`}
+                    width="100%"
+                    height="152"
+                    frameBorder="0"
+                    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                    loading="lazy"
+                    style={{display:"block"}}
+                  />
+                  <div className="sp-player-footer">
+                    <span className="sp-note">
+                      {SPOTIFY_PLAYLISTS[spIdx].emoji} {SPOTIFY_PLAYLISTS[spIdx].title} · {SPOTIFY_PLAYLISTS[spIdx].sub} · Full tracks with Spotify Premium
+                    </span>
+                    <button className="sp-close" onClick={()=>setSpOpen(false)}>✕ Close</button>
+                  </div>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </div>

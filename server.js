@@ -167,6 +167,25 @@ app.post("/api/auth/verify-otp", async (req, res) => {
   res.json({ message: "OTP verified", token: sign({ id: user._id.toString(), email }) });
 });
 
+// POST /api/auth/reset-password
+app.post("/api/auth/reset-password", async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+  try {
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ error: "User not found" });
+    if (user.otp !== otp) return res.status(400).json({ error: "Invalid code" });
+    if (new Date() > user.otpExpiry) return res.status(400).json({ error: "Code expired — please request a new one" });
+    if (!newPassword || newPassword.length < 6) return res.status(400).json({ error: "Password must be at least 6 characters" });
+    user.passwordHash = await bcrypt.hash(newPassword, 10);
+    user.otp = null;
+    user.otpExpiry = null;
+    await user.save();
+    res.json({ message: "Password reset successfully" });
+  } catch (e) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // POST /api/auth/signup
 app.post("/api/auth/signup", auth, async (req, res) => {
   const { password, name, college, subjects, style, location } = req.body;

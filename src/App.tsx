@@ -1760,7 +1760,7 @@ function Friends({ user, onToast, onMessage }) {
 
 // ── Spotify OAuth PKCE helpers ──────────────────────────────────────────────
 const SP_CLIENT_ID   = "2d31353eea8c49fe84c92ee1674c2738";
-const SP_REDIRECT    = "https://studyybudyy.github.io/studybuddy";
+const SP_REDIRECT    = "https://studybud.web.app";
 const SP_SCOPES      = "streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state user-read-currently-playing";
 
 async function spPKCEChallenge() {

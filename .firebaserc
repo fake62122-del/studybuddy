@@ -1,5 +1,12 @@
 {
   "projects": {
-    "default": "studybuddy"
+    "default": "studybuddy-ae87e"
+  },
+  "targets": {
+    "studybuddy-ae87e": {
+      "hosting": {
+        "studybud": ["studybud"]
+      }
+    }
   }
 }

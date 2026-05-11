@@ -128,7 +128,7 @@ const safeUser = (u) => u ? ({
   is_admin: u.isAdmin,
 }) : null;
 
-const getConnect = async (u1, u2) => Connect.findOne({
+const getConnect = async (u1, u2) => Match.findOne({
   $or: [
     { user1Id: u1, user2Id: u2 },
     { user1Id: u2, user2Id: u1 }
@@ -277,7 +277,7 @@ app.post("/api/connect/:targetId", auth, async (req, res) => {
   const existingConnect = await getConnect(myId, targetId);
 
   if (theyConnectedMe && !existingConnect) {
-    const connect = await Connect.create({ user1Id: myId, user2Id: targetId });
+    const match = await Match.create({ user1Id: myId, user2Id: targetId });
     const myUser = await User.findById(myId);
     const theirUser = await User.findById(targetId);
     io.to(`user_${targetId}`).emit("new_match", { matchId: match._id, withUser: safeUser(myUser) });
@@ -293,7 +293,7 @@ app.post("/api/connect/:targetId", auth, async (req, res) => {
 // ============================================================
 app.get("/api/matches", auth, async (req, res) => {
   const myId = new mongoose.Types.ObjectId(req.user.id);
-  const myConnects = await Connect.find({
+  const myConnects = await Match.find({
     $or: [{ user1Id: myId }, { user2Id: myId }]
   });
 
